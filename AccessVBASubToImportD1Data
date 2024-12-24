@@ -1,0 +1,44 @@
+Private Sub ImportD1Data_Click() 'Step 2 Import File Ready 4 ZDN
+Dim FlDia As FileDialog
+Dim FilName As String
+Dim FiltoImport As String
+
+Set FlDia = Application.FileDialog(msoFileDialogFilePicker)
+
+With FlDia
+    .AllowMultiSelect = False
+    .InitialFileName = Environ$("USERPROFILE") & "\Downloads"
+    .Title = Mesg(64)
+    .Filters.Clear
+    .Filters.Add "Microsoft Excel", "*.xlsx"
+    If .Show = True Then
+        FilName = .SelectedItems(1)
+       
+    Else
+        MsgBox Mesg(65)
+        DoCmd.Hourglass False
+        FilName = "Cancelled"
+        Exit Sub
+        End If
+End With
+
+If FilName <> "Cancelled" Then
+'Import spreadsheet to D1_ImportFromR
+    DoCmd.TransferSpreadsheet acImport, acSpreadsheetTypeExcel9, "D1_ImportFromR", FilName, True
+
+' Get just the samples (not the individual analyses) from the import
+DoCmd.SetWarnings False
+    DoCmd.OpenQuery "CreateD1Samples"
+    DoCmd.OpenQuery "AlignD1ImportWithExistingValues"
+    DoCmd.OpenQuery "AppendD1FoodsAlreadyIn"
+    DoCmd.RunSQL "Delete * from d1_tmp"
+    
+    Me.D1_Samples.Requery
+    
+    DoCmd.SetWarnings True
+    
+    If (DCount("ZDN_FoodID", "D1_Samples", "[ZDN_FoodID] is not null") > 0) Then MsgBox "Some samples in this import appear to have been entered previously.  Please double-check your records before importing"
+
+
+End If
+End Sub
